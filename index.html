@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Content Q&A Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> <!-- Import axios -->
+    <style>
+        /* General Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            margin: 30px;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        p {
+            font-size: 16px;
+        }
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            margin-top: 20px;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"] {
+            width: 90%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        /* Loading Indicators */
+        #scrapingLoading, #answerLoading {
+            display: none;
+            margin-top: 15px;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        #scrapingLoading {
+            color: #e67e22; /* Orange for scraping */
+        }
+        #answerLoading {
+            color: #27ae60; /* Green for answering */
+        }
+
+        /* Scraped Data Display */
+        #scrapedContainer {
+            display: none;
+            margin-top: 15px;
+        }
+        #scrapedData {
+            width: 90%;
+            height: 150px;
+            font-size: 14px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            resize: vertical;
+            box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+
+        /* Answer Section */
+        #answer {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #ecf0f1;
+            box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        #answer h2 {
+            color: #2c3e50;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            input[type="text"], textarea, button {
+                width: 100%;
+            }
+            form {
+                width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Web Content Q&A Tool</h1>
+    <p>Enter one or more URLs to scrape content and ask questions based on it.</p>
+
+    <!-- URL Input Form -->
+    <form id="urlForm">
+        <label for="url">Enter URLs (comma separated):</label>
+        <input type="text" id="url" name="url" required placeholder="e.g., https://example.com, https://another.com">
+        <button type="submit">Scrape Content</button>
+    </form>
+
+    <!-- Scraping Loading Indicator -->
+    <div id="scrapingLoading">🔄 Scraping content... Please wait.</div>
+
+    <!-- Display Scraped Data -->
+    <div id="scrapedContainer">
+        <textarea id="scrapedData" readonly placeholder="Scraped content will appear here..."></textarea>
+    </div>
+
+    <!-- Question Input Form -->
+    <form id="questionForm" style="display: none;">
+        <label for="question">Ask a question based on the scraped content:</label>
+        <input type="text" id="question" name="question" required placeholder="e.g., What is the main topic?">
+        <button type="submit">Ask</button>
+    </form>
+
+    <!-- Answer Loading Indicator -->
+    <div id="answerLoading">⏳ Processing your question... Please wait.</div>
+
+    <!-- Display Answer -->
+    <div id="answer">
+        <h2>Answer will appear here...</h2>
+    </div>
+
+    <script>
+        let contextText = "";
+
+        // URL Submission
+        document.getElementById('urlForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const urlInput = document.getElementById('url').value;
+            const urls = urlInput.split(',').map(url => url.trim());
+
+            if (urls.length === 0) {
+                alert("Please enter at least one URL.");
+                return;
+            }
+
+            document.getElementById('scrapingLoading').style.display = 'block'; // Show scraping loading
+            document.getElementById('scrapedContainer').style.display = 'none'; // Hide previous scraped data
+            document.getElementById('answer').style.display = 'none'; // Hide previous answer
+
+            axios.post('http://127.0.0.1:5000/scrape', { urls }) 
+                .then(response => {
+                    document.getElementById('scrapingLoading').style.display = 'none';
+
+                    if (response.data.text) {
+                        contextText = response.data.text;
+                        document.getElementById('scrapedData').value = contextText;
+                        document.getElementById('scrapedContainer').style.display = 'block'; // Show scraped content
+                        document.getElementById('questionForm').style.display = 'block'; // Show question form
+                    } else {
+                        alert("Error scraping content: " + (response.data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('scrapingLoading').style.display = 'none';
+                    alert('Error: ' + (error.response?.data.error || error.message));
+                });
+        });
+
+        // Question Submission
+        document.getElementById('questionForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const question = document.getElementById('question').value;
+            contextText = document.getElementById('scrapedData').value.trim(); // Allow user to edit text
+
+            if (!contextText) {
+                alert("Scraped content is empty. Please enter a valid URL.");
+                return;
+            }
+
+            document.getElementById('answerLoading').style.display = 'block'; // Show answer loading
+
+            axios.post('http://127.0.0.1:5000/ask', { question, context: contextText })
+                .then(response => {
+                    document.getElementById('answerLoading').style.display = 'none';
+                    document.getElementById('answer').style.display = 'block'; // Show answer section
+                    document.getElementById('answer').innerHTML = `
+                        <h2>Answer:</h2>
+                        <p><strong>${response.data.answer}</strong></p>
+                        <p>Confidence: <strong>${response.data.confidence}</strong></p>`;
+                })
+                .catch(error => {
+                    document.getElementById('answerLoading').style.display = 'none';
+                    alert('Error: ' + (error.response?.data.error || error.message));
+                });
+        });
+    </script>
+</body>
+</html>
